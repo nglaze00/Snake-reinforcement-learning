@@ -290,7 +290,7 @@ def play(genomes, config):
 
 def run_neat(config_file):
     """
-    runs the NEAT algorithm to train a neural network to play flappy bird.
+    runs the NEAT algorithm to train a neural network to play the tank game
     :param config_file: location of config file
     :return: None
     """

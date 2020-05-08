@@ -15,58 +15,68 @@ from pygame.locals import (
 # screen
 SCREEN_SIZE = 500
 BLOCK_SIZE = 25
-GRID_SIZE = SCREEN_SIZE / BLOCK_SIZE
+GRID_SIZE = SCREEN_SIZE // BLOCK_SIZE
 
 
 
 # framerate
 FRAMERATE = 10
-USE_FRAMERATE = True
+USE_FRAMERATE = False
 
 class Food():
     def __init__(self, pos):
-        self.pos = tuple(np.multiply(pos, BLOCK_SIZE))
+        self.pos = tuple(pos)
     def draw(self, screen):
         border = 5
-        pygame.draw.rect(screen, (150, 0, 0), (*self.pos, BLOCK_SIZE, BLOCK_SIZE))
+        real_pos = np.multiply(self.pos, BLOCK_SIZE)
+        pygame.draw.rect(screen, (150, 0, 0), (*real_pos, BLOCK_SIZE, BLOCK_SIZE))
         pygame.draw.rect(screen, (255, 0, 0),
-                         (self.pos[0] + border, self.pos[1] + border, BLOCK_SIZE - 2 * border, BLOCK_SIZE - 2 * border))
+                         (real_pos[0] + border, real_pos[1] + border, BLOCK_SIZE - 2 * border, BLOCK_SIZE - 2 * border))
     def respawn(self):
-        self.pos = tuple(np.multiply(rand_pos(), BLOCK_SIZE))
+        self.pos = tuple(rand_pos())
 
 
 class Snake():
     def __init__(self, pos):
         self.dir = self.right
-        self.blocks = [tuple(np.multiply(pos, BLOCK_SIZE))]
+        self.blocks = [tuple(pos)]
+        self.pos_history = [tuple(pos), None]
 
     def draw(self, screen):
         border = 5
         for pos in self.blocks:
-            pygame.draw.rect(screen, (0, 150, 0), (*pos, BLOCK_SIZE, BLOCK_SIZE))
-            pygame.draw.rect(screen, (0, 255, 0), (pos[0] + border, pos[1] + border, BLOCK_SIZE - 2 * border, BLOCK_SIZE - 2 * border))
+            real_pos = np.multiply(pos, BLOCK_SIZE)
+            pygame.draw.rect(screen, (0, 150, 0), (*real_pos, BLOCK_SIZE, BLOCK_SIZE))
+            pygame.draw.rect(screen, (0, 255, 0), (real_pos[0] + border, real_pos[1] + border, BLOCK_SIZE - 2 * border, BLOCK_SIZE - 2 * border))
 
     def move(self):
 
         new = self.dir(self.blocks[0])
         # validate move
-        if not 0 <= new[0] < SCREEN_SIZE or not 0 <= new[1] < SCREEN_SIZE:
+        if not 0 <= new[0] < GRID_SIZE or not 0 <= new[1] < GRID_SIZE:
             return False
         if new in self.blocks:
             return False
 
         self.blocks.insert(0, new)
         self.blocks.pop()
+
+        # kill if single block moves back and forth
+        if self.pos_history[-1] == new:
+            return False
+        self.pos_history.pop()
+        self.pos_history.insert(0, new)
+
         return True
 
     def left(self, head):
-        return (head[0] - BLOCK_SIZE, head[1])
+        return (head[0] - 1, head[1])
     def right(self, head):
-        return (head[0] + BLOCK_SIZE, head[1])
+        return (head[0] + 1, head[1])
     def up(self, head):
-        return (head[0], head[1] - BLOCK_SIZE)
+        return (head[0], head[1] - 1)
     def down(self, head):
-        return (head[0], head[1] + BLOCK_SIZE)
+        return (head[0], head[1] + 1)
 
 # def Food(pygame.sprite.Sprite):
 
@@ -100,6 +110,7 @@ def play(mover):
     score = 0
 
 
+
     done = False
     while not done:
         for event in pygame.event.get():
@@ -116,13 +127,13 @@ def play(mover):
 
 
         # build game state
-        state = np.zeros((SCREEN_SIZE, SCREEN_SIZE), dtype=int)
+        state = np.zeros((GRID_SIZE, GRID_SIZE), dtype=int)
         # snake head = 2
         state[snake.blocks[0]] = 2
         # other snake blocks = 1
         for block in snake.blocks[1:]:
             state[block] = 1
-        # todo food position = 3
+        state[food.pos] = 3
 
         # move snake
         mover(state, snake)
@@ -136,8 +147,9 @@ def play(mover):
             food.respawn()
             snake.blocks.append(snake.blocks[0])
 
-        clock.tick(FRAMERATE)
+        if USE_FRAMERATE:
+            clock.tick(FRAMERATE)
 
     return score
 
-play(human_mover)
+# play(human_mover)
