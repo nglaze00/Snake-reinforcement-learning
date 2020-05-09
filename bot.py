@@ -15,34 +15,43 @@ outputs: direction to move:
 """
 import neat
 import numpy as np
-from game import play, GRID_SIZE
+from game import play, START_GEN
 
+
+PLAYS_PER_BOT = 5
 
 def bot_mover_maker(model):
     def bot_mover(state, snake):
-        inputs = state.flatten()
-        guesses = model.activate(inputs)
+
+        guesses = model.activate(state)
+
         dir = np.argmax(guesses)
-        if dir == 0:
+
+        if dir == 0 and not snake.dir == snake.down:
             snake.dir = snake.up
-        elif dir == 1:
+        elif dir == 1 and not snake.dir == snake.left:
             snake.dir = snake.right
-        elif dir == 2:
+        elif dir == 2 and not snake.dir == snake.up:
             snake.dir = snake.down
-        elif dir == 3:
+        elif dir == 3 and not snake.dir == snake.right:
             snake.dir = snake.left
 
     return bot_mover
 
 
 def train_generation(genomes, config):
+    fitnesses = 0
 
-    for genome_id, genome in genomes:
+
+    for i, (genome_id, genome) in enumerate(genomes):
         genome.fitness = 0
         model = neat.nn.FeedForwardNetwork.create(genome, config)
         bot_mover = bot_mover_maker(model)
+        for _ in range(PLAYS_PER_BOT):
+            genome.fitness += play(bot_mover) / PLAYS_PER_BOT
+            fitnesses += genome.fitness
 
-        genome.fitness = play(bot_mover)
+    print('#  ' * 30, fitnesses / len(genomes))
 
 def run_neat(config_file):
     """
@@ -55,16 +64,18 @@ def run_neat(config_file):
                                 config_file)
 
     # Create the population, which is the top-level object for a NEAT run.
-    p = neat.Population(config)
-
+    if START_GEN == 0:
+        p = neat.Population(config)
+    else:
+        p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-' + str(START_GEN))
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
-    p.add_reporter(neat.Checkpointer(5))
+    p.add_reporter(neat.Checkpointer(50))
 
     # Run for up to 20 generations.
-    winner = p.run(train_generation, 20)
+    winner = p.run(train_generation, 1000)
 
     # show final stats
     print('\nBest genome:\n{!s}'.format(winner))
