@@ -1,47 +1,42 @@
 """
 Code for training a Snake bot using NEAT
 
-inputs: board state
-    0: blank
-    1: snake
-    2: snake head
-    3: food
 
-outputs: direction to move:
-    0: up
-    1: right
-    2: down
-    3: left
+
 """
 import neat
 import numpy as np
 from game import play, START_GEN
+import game
 
 
-PLAYS_PER_BOT = 5
+PLAYS_PER_BOT = 3
+
+
 
 def bot_mover_maker(model):
     def bot_mover(state, snake):
 
         guesses = model.activate(state)
 
-        dir = np.argmax(guesses)
+        # turn = np.argmax(guesses) # left, straight, or right
+        #
+        # snake.dir = snake.turn_directions[snake.dir][turn]
 
-        if dir == 0 and not snake.dir == snake.down:
+        new_dir = np.argmax(guesses)
+        if new_dir == 0:
             snake.dir = snake.up
-        elif dir == 1 and not snake.dir == snake.left:
+        elif new_dir == 1:
             snake.dir = snake.right
-        elif dir == 2 and not snake.dir == snake.up:
+        elif new_dir == 2:
             snake.dir = snake.down
-        elif dir == 3 and not snake.dir == snake.right:
+        elif new_dir == 3:
             snake.dir = snake.left
 
     return bot_mover
 
 
 def train_generation(genomes, config):
-    fitnesses = 0
-
 
     for i, (genome_id, genome) in enumerate(genomes):
         genome.fitness = 0
@@ -49,9 +44,6 @@ def train_generation(genomes, config):
         bot_mover = bot_mover_maker(model)
         for _ in range(PLAYS_PER_BOT):
             genome.fitness += play(bot_mover) / PLAYS_PER_BOT
-            fitnesses += genome.fitness
-
-    print('#  ' * 30, fitnesses / len(genomes))
 
 def run_neat(config_file):
     """
@@ -68,17 +60,32 @@ def run_neat(config_file):
         p = neat.Population(config)
     else:
         p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-' + str(START_GEN))
+    p = neat.Checkpointer.restore_checkpoint('gamers_box=5_hidden=18')
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
     p.add_reporter(neat.Checkpointer(50))
 
-    # Run for up to 20 generations.
+    print(p.config.genome_config.num_hidden, p.config.genome_config.num_inputs, p.config.pop_size)
+
+    # Run for up to ?? generations.
     winner = p.run(train_generation, 1000)
+
+
+
+
+
 
     # show final stats
     print('\nBest genome:\n{!s}'.format(winner))
+
+    game.WATCH = True
+    game.USE_FRAMERATE = True
+    winner_model = neat.nn.FeedForwardNetwork.create(winner, config)
+    score = np.average([play(bot_mover_maker(winner_model)) for _ in range(10)])
+
+    print(score)
 
 
 run_neat('config-feedforward.txt')
