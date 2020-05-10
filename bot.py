@@ -4,24 +4,29 @@ Code for training a Snake bot using NEAT
 
 
 """
+import pickle
 import neat
 import numpy as np
-from game import play, START_GEN
+from game import play
 import game
 
-
+# how many plays to average together in each fitness calculation
 PLAYS_PER_BOT = 3
+# how far to allow the bot to see
+VISION_BOX = 5
 
 
 
 def bot_mover_maker(model):
-    def bot_mover(state, snake):
-
+    """
+    Returns a function that, when called, uses the given model to suggest a direction for the snake to move, given
+    the current state
+    :param model: neat.nn.FeedForwardNetwork object
+    :return: function with args (state, snake)
+    """
+    def bot_mover(snake, food):
+        state = local_state(snake, food)
         guesses = model.activate(state)
-
-        # turn = np.argmax(guesses) # left, straight, or right
-        #
-        # snake.dir = snake.turn_directions[snake.dir][turn]
 
         new_dir = np.argmax(guesses)
         if new_dir == 0:
@@ -36,18 +41,59 @@ def bot_mover_maker(model):
     return bot_mover
 
 
-def train_generation(genomes, config):
+def is_occupied(pos, snake):
+    """
+    Return whether a grid point :pos: is blank (0) or not (1)
+    """
+    if pos in snake.blocks: # snake tail
+        return 1
+    if not 0 <= pos[0] < game.GRID_SIZE or not 0 <= pos[1] < game.GRID_SIZE: # border
+        return 1
+    else:                # blank
+        return 0
 
+def local_state(snake, food):
+    """
+    Returns whether the points in a grid around the snake's head are occupied,
+        plus booleans identifying direction to food
+
+    :return: flattened VISION_BOX x VISION_BOX binary matrix
+    """
+    state = []
+    head = snake.blocks[0]
+
+    # local state (5x5 grid around snake)
+    for i in range(-VISION_BOX // 2 + 1, VISION_BOX // 2 + 1):
+        for j in range(-VISION_BOX // 2 + 1, VISION_BOX // 2 + 1):
+            if i != 0 or j != 0:
+
+                state.append(is_occupied((head[0] + j, head[1] + i), snake))
+
+    # four booleans: is food up, down, left, or right?
+    food_direction = (
+            1 if food.pos[1] < head[1] else 0,
+            1 if food.pos[1] > head[1] else 0,
+            1 if food.pos[0] < head[0] else 0,
+            1 if food.pos[0] > head[0] else 0
+    )
+    state += [*food_direction]
+    return state
+
+
+def train_generation(genomes, config):
+    """
+    Computes fitnesses of given genomes
+    """
     for i, (genome_id, genome) in enumerate(genomes):
         genome.fitness = 0
         model = neat.nn.FeedForwardNetwork.create(genome, config)
         bot_mover = bot_mover_maker(model)
         for _ in range(PLAYS_PER_BOT):
-            genome.fitness += play(bot_mover) / PLAYS_PER_BOT
+            genome.fitness += play(bot_mover, game.rand_pos()) / PLAYS_PER_BOT
 
 def run_neat(config_file):
     """
-    runs the NEAT algorithm to train a neural network to play the tank game
+    runs the NEAT algorithm to train a neural network to play Snake
     :param config_file: location of config file
     :return: None
     """
@@ -56,36 +102,22 @@ def run_neat(config_file):
                                 config_file)
 
     # Create the population, which is the top-level object for a NEAT run.
-    if START_GEN == 0:
-        p = neat.Population(config)
-    else:
-        p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-' + str(START_GEN))
-    p = neat.Checkpointer.restore_checkpoint('gamers_box=5_hidden=18')
+    p = neat.Population(config)
+
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
     p.add_reporter(neat.Checkpointer(50))
 
-    print(p.config.genome_config.num_hidden, p.config.genome_config.num_inputs, p.config.pop_size)
-
-    # Run for up to ?? generations.
+    # Run for up to 1000 generations.
     winner = p.run(train_generation, 1000)
 
-
-
-
-
+    # save best genome to file
+    pickle.dump(winner, open('best_genome', 'wb'))
 
     # show final stats
     print('\nBest genome:\n{!s}'.format(winner))
 
-    game.WATCH = True
-    game.USE_FRAMERATE = True
-    winner_model = neat.nn.FeedForwardNetwork.create(winner, config)
-    score = np.average([play(bot_mover_maker(winner_model)) for _ in range(10)])
-
-    print(score)
-
-
-run_neat('config-feedforward.txt')
+if __name__ == '__main__':
+    run_neat('config-feedforward.txt')
