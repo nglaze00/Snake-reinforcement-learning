@@ -3,7 +3,7 @@ AI trained to play Snake using NEAT reinforcement learning and PyGame.
 
 ![Snake bot](snake_bot.gif)
 
-This bot scored 67 points.
+This bot ate 67 pieces of food before trapping itself.
 
 ## Training using NEAT-Python
 [NEAT-Python](https://neat-python.readthedocs.io/en/latest/) is a library that trains neural networks using genetic algorithms. 
