@@ -19,9 +19,9 @@ GRID_SIZE = 16
 SCREEN_SIZE = BLOCK_SIZE * GRID_SIZE
 
 # observation settings
-FRAMERATE = 30
-USE_FRAMERATE = False
-WATCH = False
+FRAMERATE = 10
+USE_FRAMERATE = True
+WATCH = True
 SHOW_DEATH_CAUSE = False
 
 class Food():
@@ -88,7 +88,7 @@ def rand_pos():
     """
     return np.random.randint(0, GRID_SIZE, size=2)
 
-def human_mover(state, snake):
+def human_mover(snake, food):
     presses = pygame.key.get_pressed()
     if presses[K_w]:
         snake.dir = snake.up
@@ -178,4 +178,5 @@ def play(snake_controller, food_controller):
 
 if __name__ == '__main__':
     FRAMERATE = 10
-    play(human_mover, rand_pos)
+    while True:
+        print("Score: {}".format(play(human_mover, rand_pos)))

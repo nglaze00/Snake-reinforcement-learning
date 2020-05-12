@@ -73,6 +73,6 @@ def watch_games(genome_file, config_file):
 
 
 
-
+game.FRAMERATE = 30
 watch_best('best_genome.pkl', 'best_config.pkl', 'best_food_pos.pkl')
 watch_games('best_genome.pkl', 'best_config.pkl')

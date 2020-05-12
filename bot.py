@@ -110,6 +110,11 @@ def run_neat(config_file):
     p.add_reporter(stats)
     p.add_reporter(neat.Checkpointer(50))
 
+    # Setings to watch training
+    game.USE_FRAMERATE = True
+    game.FRAMERATE = 100
+    game.WATCH = True
+
     # Run for up to 1000 generations.
     winner = p.run(train_generation, 1000)
 
